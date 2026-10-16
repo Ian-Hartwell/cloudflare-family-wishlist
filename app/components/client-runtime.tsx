@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { Scripts } from 'react-router';
 
 const enhancementScripts = [
+  '/shared-assets/cookie-notice.js',
+  '/shared-assets/product-pictures.js',
+  '/shared-assets/wish-titles.js',
   '/product-import.js',
   '/bookmarklet.js',
   '/family-members.js',
@@ -26,6 +29,7 @@ export function ClientRuntime({
 
       const script = document.createElement('script');
       script.src = source;
+      if (source === '/product-import.js') script.type = 'module';
       script.nonce = cspNonce;
       script.async = false;
       script.dataset.wishlistEnhancement = source;
@@ -33,7 +37,15 @@ export function ClientRuntime({
     }
   }, [cspNonce, isPublicShare]);
 
-  if (isPublicShare) return null;
+  if (isPublicShare) {
+    return (
+      <>
+        <script src="/shared-assets/cookie-notice.js" nonce={cspNonce} defer />
+        <script src="/shared-assets/product-pictures.js" nonce={cspNonce} defer />
+        <script src="/shared-assets/wish-titles.js" nonce={cspNonce} defer />
+      </>
+    );
+  }
 
   return <Scripts nonce={cspNonce} />;
 }

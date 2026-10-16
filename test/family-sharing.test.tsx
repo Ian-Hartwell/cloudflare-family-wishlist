@@ -9,7 +9,6 @@ import {
   createFamilyShareLink,
   createWishlistShareLink,
   getSharedWishlists,
-  getSharedWishlistImageUrl,
   listActiveFamilyShareLinks,
   listActiveShareLinks,
   listShareableWishlists,
@@ -94,7 +93,7 @@ describe('family sharing', () => {
     ]);
   });
 
-  it('never publishes claims and limits image access to the selected lists', async () => {
+  it('publishes availability without private claim details and returns pictures only for selected lists', async () => {
     const { admin, bob, carol } = await fixture();
     for (const member of [admin, bob, carol]) {
       await createWishlistItem(env.DB, admin.id, member.wishlistId, {
@@ -125,13 +124,12 @@ describe('family sharing', () => {
       notes: 'Green please',
       priceAmountMinor: 2450
     });
-    for (const item of [aliceItem, bobItem]) {
-      expect(await getSharedWishlistImageUrl(env.DB, token, item.id)).toMatchObject({
-        imageUrl: 'https://cdn.example.com/gift.webp'
-      });
-    }
-    await expect(getSharedWishlistImageUrl(env.DB, token, carolItem.id)).resolves.toBeNull();
-    const loaderData = { wishlists: shared, token };
+    expect(shared.flatMap((list) => list.items).map((item) => item.imageUrl)).toEqual([
+      'https://cdn.example.com/gift.webp',
+      'https://cdn.example.com/gift.webp'
+    ]);
+    expect(shared.flatMap((list) => list.items).map((item) => item.id)).not.toContain(carolItem.id);
+    const loaderData = { wishlists: shared, token, recoveryCode: 'a'.repeat(43) };
     const html = renderToStaticMarkup(
       <SharedWishlistPage
         loaderData={loaderData}
@@ -156,7 +154,7 @@ describe('family sharing', () => {
     );
     for (const privateValue of [
       'purchased',
-      'claim',
+      'claimed_by_member_id',
       bob.id,
       'Private reminder',
       'Gift for carol'
@@ -164,9 +162,21 @@ describe('family sharing', () => {
       expect(JSON.stringify(shared)).not.toContain(privateValue);
       expect(html).not.toContain(privateValue);
     }
+    expect(html).toContain('src="https://cdn.example.com/gift.webp"');
+    expect(html).toContain('referrerPolicy="no-referrer"');
+    expect(html).not.toContain('/image/');
     expect(html).toContain('alice’s wishlist');
     expect(html).toContain('bob’s wishlist');
-    expect(html).not.toContain('<form');
+    expect(shared[0]?.items[0]?.reservation).toBe('reserved');
+    expect(shared[1]?.items[0]?.reservation).toBe('available');
+    expect(html).toContain('wish-row-reserved');
+    expect(html).toContain(
+      '<span class="wish-gift-label"><span aria-hidden="true">✓</span> Reserved</span>'
+    );
+    expect(html).not.toContain('wish-row-bought');
+    expect(html).not.toContain('You’ve bought this');
+    expect(html).toContain('I’ll get this');
+    expect(html).toContain('method="post"');
   });
 
   it('rejects invalid or stale selections without persisting a partial link', async () => {
@@ -304,7 +314,7 @@ describe('family sharing', () => {
       await expect(getSharedWishlists(env.DB, link.token)).resolves.toHaveLength(1);
   });
 
-  it('revokes a whole group and its images while other links remain usable through the Worker', async () => {
+  it('revokes a whole group while other links remain usable through the Worker', async () => {
     const { admin, bob } = await fixture();
     await createWishlistItem(env.DB, admin.id, bob.wishlistId, {
       title: 'A picture gift',
@@ -340,16 +350,9 @@ describe('family sharing', () => {
       typeof fetch
     >[0];
     expect((await fetch(request, env, createExecutionContext())).status).toBe(200);
-    await expect(getSharedWishlistImageUrl(env.DB, first.token, item.id)).resolves.toMatchObject({
-      imageUrl: 'https://cdn.example.com/gift.webp'
-    });
     await revokeFamilyShareLink(env.DB, admin.id, first.shareLinkId);
     await revokeFamilyShareLink(env.DB, admin.id, first.shareLinkId);
     expect((await fetch(request, env, createExecutionContext())).status).toBe(404);
-    await expect(getSharedWishlistImageUrl(env.DB, first.token, item.id)).resolves.toBeNull();
-    await expect(getSharedWishlistImageUrl(env.DB, second.token, item.id)).resolves.toMatchObject({
-      imageUrl: 'https://cdn.example.com/gift.webp'
-    });
     await expect(getSharedWishlists(env.DB, second.token)).resolves.toHaveLength(1);
     await expect(getSharedWishlists(env.DB, singleToken)).resolves.toHaveLength(1);
     expect(await listActiveFamilyShareLinks(env.DB, admin.id)).toHaveLength(1);

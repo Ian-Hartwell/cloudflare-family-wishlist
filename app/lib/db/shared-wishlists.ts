@@ -1,3 +1,4 @@
+import { normaliseProductImageUrl } from '../product-url';
 import type { ItemPriority } from './wishlists';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -15,6 +16,8 @@ type SharedWishlistRow = {
   item_price_amount_minor: number | null;
   item_price_currency: string | null;
   item_priority: ItemPriority | null;
+  reserved: number;
+  own_claim_state: string | null;
 };
 
 export type SharedWishlistItem = {
@@ -22,10 +25,11 @@ export type SharedWishlistItem = {
   title: string;
   notes: string | null;
   productUrl: string | null;
-  hasImage: boolean;
+  imageUrl: string | null;
   priceAmountMinor: number | null;
   priceCurrency: string | null;
   priority: ItemPriority;
+  reservation: 'available' | 'reserved' | 'yours' | 'bought';
 };
 
 export type SharedWishlist = {
@@ -54,15 +58,6 @@ export type ActiveFamilyShareLink = {
 };
 
 export class SharedWishlistInputError extends Error {}
-export class SharedImageRateLimitError extends Error {
-  readonly retryAfterSeconds: number;
-
-  constructor(retryAfterSeconds: number) {
-    super('That shared list has loaded lots of pictures. Try again in a little while.');
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-}
-
 function requireUuid(value: unknown, label: string): string {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
     throw new SharedWishlistInputError(`${label} is invalid.`);
@@ -113,17 +108,8 @@ async function hashShareToken(token: string): Promise<string> {
   return sha256Hex(token);
 }
 
-async function tokenHash(value: unknown): Promise<string> {
+export async function tokenHash(value: unknown): Promise<string> {
   return hashShareToken(requireToken(value));
-}
-
-export async function makeSharedImageRequesterKey(
-  token: unknown,
-  requesterAddress: string | null
-): Promise<string> {
-  const capability = requireToken(token);
-  const address = requesterAddress?.trim().toLowerCase().slice(0, 128) || 'unknown';
-  return sha256Hex(`${capability}\n${address}`);
 }
 
 export async function hasWishlistShareLink(db: D1Database, wishlistId: string): Promise<boolean> {
@@ -453,8 +439,8 @@ export async function revokeShareLink(
     throw new SharedWishlistInputError('We couldn’t stop sharing this link. Try again.');
 }
 
-// Existing single-list capabilities and new selections share the claim-free public boundary.
-const SHARED_WISHLIST_IDS = `
+// Both link types grant the same item-scoped guest permissions.
+export const SHARED_WISHLIST_IDS = `
   SELECT wishlist_id FROM wishlist_share_links WHERE token_hash = ?1
   UNION
   SELECT selected.wishlist_id FROM family_share_links AS links
@@ -472,7 +458,8 @@ export async function getSharedWishlist(
 
 export async function getSharedWishlists(
   db: D1Database,
-  token: unknown
+  token: unknown,
+  guestHash: string | null = null
 ): Promise<SharedWishlist[]> {
   const hash = await tokenHash(token);
   const { results } = await db
@@ -488,11 +475,14 @@ export async function getSharedWishlists(
          items.image_url AS item_image_url,
          items.price_amount_minor AS item_price_amount_minor,
          items.price_currency AS item_price_currency,
-         items.priority AS item_priority
+         items.priority AS item_priority,
+         claims.item_id IS NOT NULL AS reserved,
+         CASE WHEN claims.guest_token_hash = ?2 THEN claims.state ELSE NULL END AS own_claim_state
        FROM shared_wishlist_ids
        INNER JOIN wishlists ON wishlists.id = shared_wishlist_ids.wishlist_id
        INNER JOIN members ON members.id = wishlists.owner_member_id
        LEFT JOIN items ON items.wishlist_id = wishlists.id
+       LEFT JOIN claims ON claims.item_id = items.id
        WHERE members.disabled_at IS NULL
        ORDER BY
          members.display_name COLLATE NOCASE,
@@ -505,7 +495,7 @@ export async function getSharedWishlists(
          items.created_at DESC,
          items.id DESC`
     )
-    .bind(hash)
+    .bind(hash, guestHash)
     .all<SharedWishlistRow>();
 
   const wishlists = new Map<string, SharedWishlist>();
@@ -521,178 +511,20 @@ export async function getSharedWishlists(
         title: row.item_title,
         notes: row.item_notes,
         productUrl: row.item_product_url,
-        hasImage: Boolean(row.item_image_url),
+        imageUrl: normaliseProductImageUrl(row.item_image_url),
         priceAmountMinor: row.item_price_amount_minor,
         priceCurrency: row.item_price_currency,
+        reservation:
+          row.own_claim_state === 'purchased'
+            ? 'bought'
+            : row.own_claim_state === 'claimed'
+              ? 'yours'
+              : row.reserved
+                ? 'reserved'
+                : 'available',
         priority: row.item_priority
       });
     }
   }
   return [...wishlists.values()];
-}
-
-export async function getSharedWishlistImageUrl(
-  db: D1Database,
-  token: unknown,
-  itemId: unknown
-): Promise<{ imageUrl: string; wishlistId: string } | null> {
-  const hash = await tokenHash(token);
-  const targetItemId = requireUuid(itemId, 'The wish');
-  return db
-    .prepare(
-      `WITH shared_wishlist_ids AS (${SHARED_WISHLIST_IDS})
-       SELECT items.image_url AS imageUrl, wishlists.id AS wishlistId
-       FROM shared_wishlist_ids
-       INNER JOIN wishlists ON wishlists.id = shared_wishlist_ids.wishlist_id
-       INNER JOIN members AS owners ON owners.id = wishlists.owner_member_id
-       INNER JOIN items ON items.wishlist_id = wishlists.id
-       WHERE items.id = ?2
-         AND owners.disabled_at IS NULL
-         AND items.image_url IS NOT NULL`
-    )
-    .bind(hash, targetItemId)
-    .first<{ imageUrl: string; wishlistId: string }>();
-}
-
-export async function consumeSharedImageBudget(
-  db: D1Database,
-  wishlistId: string,
-  requesterHash: string,
-  now = Date.now()
-): Promise<void> {
-  const targetWishlistId = requireUuid(wishlistId, 'The wishlist');
-  if (!/^[0-9a-f]{64}$/.test(requesterHash)) {
-    throw new SharedWishlistInputError('The picture request is invalid.');
-  }
-  const nowSeconds = Math.floor(now / 1000);
-  const minuteStartedAt = nowSeconds - (nowSeconds % 60);
-  const dayStartedAt = nowSeconds - (nowSeconds % 86_400);
-  const cleanupResult = await db
-    .prepare(
-      `DELETE FROM shared_image_requester_limits
-       WHERE wishlist_id = ?1 AND day_started_at < ?2`
-    )
-    .bind(targetWishlistId, dayStartedAt)
-    .run();
-  if (!cleanupResult.success) {
-    throw new SharedWishlistInputError('That picture could not be loaded.');
-  }
-  const requesterResult = await db
-    .prepare(
-      `INSERT INTO shared_image_requester_limits (
-         wishlist_id, requester_hash, minute_started_at, minute_request_count,
-         day_started_at, day_request_count
-       ) VALUES (?1, ?2, ?3, 1, ?4, 1)
-       ON CONFLICT (wishlist_id, requester_hash) DO UPDATE SET
-         minute_started_at = CASE
-           WHEN shared_image_requester_limits.minute_started_at = excluded.minute_started_at
-             THEN shared_image_requester_limits.minute_started_at
-           ELSE excluded.minute_started_at
-         END,
-         minute_request_count = CASE
-           WHEN shared_image_requester_limits.minute_started_at = excluded.minute_started_at
-             THEN shared_image_requester_limits.minute_request_count + 1
-           ELSE 1
-         END,
-         day_started_at = CASE
-           WHEN shared_image_requester_limits.day_started_at = excluded.day_started_at
-             THEN shared_image_requester_limits.day_started_at
-           ELSE excluded.day_started_at
-         END,
-         day_request_count = CASE
-           WHEN shared_image_requester_limits.day_started_at = excluded.day_started_at
-             THEN shared_image_requester_limits.day_request_count + 1
-           ELSE 1
-         END
-       WHERE
-         (shared_image_requester_limits.minute_started_at <> excluded.minute_started_at
-           OR shared_image_requester_limits.minute_request_count < 20)
-         AND
-         (shared_image_requester_limits.day_started_at <> excluded.day_started_at
-           OR shared_image_requester_limits.day_request_count < 100)`
-    )
-    .bind(targetWishlistId, requesterHash, minuteStartedAt, dayStartedAt)
-    .run();
-
-  if (!requesterResult.success) {
-    throw new SharedWishlistInputError('That picture could not be loaded.');
-  }
-  if (requesterResult.meta.changes !== 1) {
-    const limit = await db
-      .prepare(
-        `SELECT minute_started_at, minute_request_count, day_started_at, day_request_count
-         FROM shared_image_requester_limits
-         WHERE wishlist_id = ?1 AND requester_hash = ?2`
-      )
-      .bind(targetWishlistId, requesterHash)
-      .first<{
-        minute_started_at: number;
-        minute_request_count: number;
-        day_started_at: number;
-        day_request_count: number;
-      }>();
-    const dayLimited =
-      limit?.day_started_at === dayStartedAt && (limit?.day_request_count ?? 0) >= 100;
-    const retryAt = dayLimited ? dayStartedAt + 86_400 : minuteStartedAt + 60;
-    throw new SharedImageRateLimitError(Math.max(1, retryAt - nowSeconds));
-  }
-
-  const result = await db
-    .prepare(
-      `INSERT INTO shared_image_fetch_limits (
-         wishlist_id, minute_started_at, minute_request_count,
-         day_started_at, day_request_count
-       ) VALUES (?1, ?2, 1, ?3, 1)
-       ON CONFLICT (wishlist_id) DO UPDATE SET
-         minute_started_at = CASE
-           WHEN shared_image_fetch_limits.minute_started_at = excluded.minute_started_at
-             THEN shared_image_fetch_limits.minute_started_at
-           ELSE excluded.minute_started_at
-         END,
-         minute_request_count = CASE
-           WHEN shared_image_fetch_limits.minute_started_at = excluded.minute_started_at
-             THEN shared_image_fetch_limits.minute_request_count + 1
-           ELSE 1
-         END,
-         day_started_at = CASE
-           WHEN shared_image_fetch_limits.day_started_at = excluded.day_started_at
-             THEN shared_image_fetch_limits.day_started_at
-           ELSE excluded.day_started_at
-         END,
-         day_request_count = CASE
-           WHEN shared_image_fetch_limits.day_started_at = excluded.day_started_at
-             THEN shared_image_fetch_limits.day_request_count + 1
-           ELSE 1
-         END
-       WHERE
-         (shared_image_fetch_limits.minute_started_at <> excluded.minute_started_at
-           OR shared_image_fetch_limits.minute_request_count < 60)
-         AND
-         (shared_image_fetch_limits.day_started_at <> excluded.day_started_at
-           OR shared_image_fetch_limits.day_request_count < 500)`
-    )
-    .bind(targetWishlistId, minuteStartedAt, dayStartedAt)
-    .run();
-
-  if (!result.success) throw new SharedWishlistInputError('That picture could not be loaded.');
-  if (result.meta.changes !== 1) {
-    const limit = await db
-      .prepare(
-        `SELECT minute_started_at, minute_request_count, day_started_at, day_request_count
-         FROM shared_image_fetch_limits
-         WHERE wishlist_id = ?1`
-      )
-      .bind(targetWishlistId)
-      .first<{
-        minute_started_at: number;
-        minute_request_count: number;
-        day_started_at: number;
-        day_request_count: number;
-      }>();
-    const dayLimited =
-      limit?.day_started_at === dayStartedAt && (limit?.day_request_count ?? 0) >= 500;
-    const retryAt = dayLimited ? dayStartedAt + 86_400 : minuteStartedAt + 60;
-    const retryAfterSeconds = Math.max(1, retryAt - nowSeconds);
-    throw new SharedImageRateLimitError(retryAfterSeconds);
-  }
 }

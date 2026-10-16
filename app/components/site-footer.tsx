@@ -1,4 +1,5 @@
 import { version } from '../../package.json';
+import { CookieNotice } from './cookie-notice';
 
 const projectUrl = 'https://familywishlist.org/';
 const repositoryUrl = 'https://github.com/JonReed/cloudflare-family-wishlist';
@@ -35,6 +36,7 @@ export function SiteFooter() {
         </nav>
 
         <p className="footer-meta">v{version} · Built to run on Cloudflare</p>
+        <CookieNotice />
       </div>
     </footer>
   );

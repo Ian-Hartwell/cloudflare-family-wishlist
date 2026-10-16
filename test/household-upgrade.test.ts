@@ -10,7 +10,7 @@ import {
   prepareFamilyMemberRemoval
 } from '../app/lib/db/family-members';
 import { ensureMemberForEmail } from '../app/lib/db/members';
-import { getSharedWishlist, getSharedWishlistImageUrl } from '../app/lib/db/shared-wishlists';
+import { getSharedWishlist } from '../app/lib/db/shared-wishlists';
 import { listFamilyWishlists } from '../app/lib/db/wishlists';
 
 async function snapshot(db: D1Database) {
@@ -18,9 +18,13 @@ async function snapshot(db: D1Database) {
     db.prepare('SELECT * FROM members ORDER BY id'),
     db.prepare('SELECT * FROM wishlists ORDER BY id'),
     db.prepare('SELECT * FROM items ORDER BY id'),
-    db.prepare('SELECT * FROM claims ORDER BY item_id'),
+    db.prepare(
+      'SELECT item_id, claimed_by_member_id, state, created_at, updated_at FROM claims ORDER BY item_id'
+    ),
     db.prepare('SELECT * FROM family_invitations ORDER BY id'),
-    db.prepare('SELECT * FROM wishlist_share_links ORDER BY id')
+    db.prepare('SELECT * FROM wishlist_share_links ORDER BY id'),
+    db.prepare('SELECT * FROM shared_image_fetch_limits ORDER BY wishlist_id'),
+    db.prepare('SELECT * FROM shared_image_requester_limits ORDER BY wishlist_id, requester_hash')
   ]);
   return results.map((result) => result.results);
 }
@@ -120,6 +124,14 @@ async function seedOlderHousehold(db: D1Database) {
   // Older installations allowed five links per list, so some already exceed the new family limit.
   const activeOwner = owners[0];
   if (!activeOwner) throw new Error('Expected an active legacy owner');
+  await db.batch([
+    db
+      .prepare('INSERT INTO shared_image_fetch_limits VALUES (?1, 60, 12, 0, 37)')
+      .bind(activeOwner.wishlistId),
+    db
+      .prepare('INSERT INTO shared_image_requester_limits VALUES (?1, ?2, 60, 7, 0, 19)')
+      .bind(activeOwner.wishlistId, 'a'.repeat(64))
+  ]);
   const extraTokens = ['B'.repeat(22), 'C'.repeat(22), 'D'.repeat(22)];
   for (const token of extraTokens) {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
@@ -198,7 +210,6 @@ describe('existing household upgrades', () => {
     }
     for (const owner of [removed, removing]) {
       expect(await getSharedWishlist(db, owner.token)).toBeNull();
-      expect(await getSharedWishlistImageUrl(db, owner.token, owner.itemId)).toBeNull();
       expect((await listFamilyWishlists(db, admin.id)).map((list) => list.id)).not.toContain(
         owner.wishlistId
       );

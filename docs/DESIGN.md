@@ -18,6 +18,15 @@ novelty.
 
 ## Information architecture
 
+Keep cookie information in the footer. A compact introduction appears once per browser and records
+that it was shown automatically; never ask people to accept required cookies or click to acknowledge
+the notice. A Close button can hide that first introduction immediately. Keep a permanent **Cookies
+& privacy** native disclosure, available without JavaScript. Use only the fixed local preference
+`wishlist-cookie-notice-seen=1` to remember showing the introduction; no new cookie or visitor identifier
+is needed. If storage is unavailable, keep the permanent disclosure without a repeating introduction.
+Explain that Family Wishlist uses required cookies, while directly loaded product pictures have
+separate hosts and cookie policies. Do not put a cookie strip above the page header.
+
 The signed-in home has four stable regions:
 
 1. **Identity:** the Family Wishlist mark and the current member.
@@ -149,8 +158,17 @@ the title and “Add a wish” shortcut rather than stacking all three tools ver
 The active wishlist heading is a modest serif section title, not a display headline: cap it at
 2rem on desktop and use 1.65rem on mobile, with a shallow top inset so wishes begin sooner.
 
-In the saved list, keep price with the title and notes. Show gift status as a quiet sentence below
-the details, without a boxed panel or heavy vertical rule. The wrapping action line contains the
+In the saved list, keep price with the title and notes. With JavaScript available, limit saved wish
+titles to two lines with an ellipsis on both family and shared lists. Offer **Show full title** only
+when the rendered text is clipped;
+opening it reveals the complete heading in place, with **Show less** to collapse it again. Keep
+short titles free of extra controls, allow long unbroken words to wrap, and recalculate after edits,
+navigation or a width change. After editing a title, return it to the compact view and remeasure it.
+Preserve the complete saved title and show it in full when enhancement is unavailable. Keep gift
+and priority labels outside the clipped title.
+
+Show gift status as a quiet sentence below the details, without a boxed panel or heavy vertical rule.
+The wrapping action line contains the
 shop link and relevant buying controls, with a small “Edit this wish ▾” disclosure at the right for Edit and
 Remove. Keep touch targets at least 44px high. The footer must reach the same right edge whether a
 wish is unclaimed, claimed or bought. Opening the disclosure must not resize the row when JavaScript is available;
@@ -159,7 +177,7 @@ When a picture leaves too little room, let the footer span the item content's
 full width; use the available content width rather than only the viewport to choose this layout.
 Give the “See where to find it” shop link a filled evergreen treatment and retain its external-link
 arrow, making the buying route more prominent than list maintenance. Keep it a semantic link, including
-on the read-only shared list. Without JavaScript, the action dropdown and its nested edit/remove disclosures open
+on the shared list. Without JavaScript, the action dropdown and its nested edit/remove disclosures open
 ordinary inline forms. Opening the enhanced editor must
 not change the position or width of the image, metadata or claim controls above it. With JavaScript,
 saving closes the editor and dropdown, updates the wish in place, shows “Changes saved.” in the footer,
@@ -204,20 +222,39 @@ not replace the wish name, and repeated adjacent alt text should be avoided.
 On someone else's list, “I’ll get this” is a compact secondary action. A claimed gift shows
 “You’re getting this”, with **Mark as bought** and a quiet **Cancel claim** text action. A bought gift
 shows “You’ve bought this” and **Mark as not bought**, which retains the claim. Choices made by another person are informative
-rather than actionable. When JavaScript is available, these small actions update in place with a
+rather than actionable. Give bought wishes a pale sage wash across the entire row, with a tick and
+**Bought** beside the title. Keep the title, picture, notes and priority readable, retain the sentence
+identifying who bought it, and give the shop link an outlined evergreen treatment. In the signed-in
+family view, claimed wishes keep the ordinary paper row until marked bought; marking a wish as not
+bought restores that appearance. Keep the wish in its existing position. The recipient's signed-in
+list must never receive a bought label or row style.
+
+On shared lists, give every reserved wish the same sage wash and outlined shop link, with a tick and
+**Reserved** beside its title. This includes the current guest's reservations. Show **Bought** only
+for the current guest's own purchases; other people's claims and purchases both stay **Reserved**,
+with no buyer details. Marking a guest's purchase as not bought restores the **Reserved** label and
+keeps the wash. Releasing a reservation restores the ordinary paper row and filled shop link.
+
+When JavaScript is available, these small actions update in place with a
 local pending state and an error beside the affected wish. The same controls must remain ordinary
 server forms without JavaScript; optimistic presentation must never override the server's answer to
 a competing claim.
 
-On the recipient's own list, claim data must not merely be hidden with CSS: it must be absent from
+On the recipient's signed-in list, claim data must not merely be hidden with CSS: it must be absent from
 the server response. Do not spend permanent page space explaining this invariant. Keep the warm,
 plain-language reassurance in project guidance instead: “If someone decides to get you something
 from this list, we’ll keep it secret so the surprise isn’t spoiled.”
 
 ### Sharing ideas with wider family
 
-The link-shared view is a calm, read-only paper list with the Family Wishlist mark, the person's name,
-wish count and ordinary wish details. It has no signed-in navigation, editing, add or claim controls.
+The link-shared view is a calm paper list with the Family Wishlist mark, the person's name,
+wish count and ordinary wish details. It has no signed-in navigation, wish editing or add controls. Every link offers guest reservation
+controls with explicit text status: Available to give, Reserved, You’re getting this, or You’ve bought
+this. Only the current guest can change their reservation. Keep recovery behind a native disclosure
+and explain that anyone with the link, including the owner, can see reservation availability.
+For a guest's first reservation, show the gift title and **Confirm: I’ll get this** beside **Cancel**.
+Explain that the gift stays available until confirmed and that this checks the browser can remember
+reservations. Once the browser returns its required cookie, keep reservation actions to one click.
 The absence of those controls is sufficient; do not add software-oriented explanations about what a
 public visitor cannot do.
 

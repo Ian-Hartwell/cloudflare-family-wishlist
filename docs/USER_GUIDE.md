@@ -14,11 +14,18 @@ Choose **My wishlist** or another person's gift tag to switch lists. Everyone ad
 family space can add, edit and remove wishes on every list. Treat it as a shared family notebook,
 not a private diary.
 
+Cookie information lives in the footer. Its short introduction appears once in each browser, with
+no acceptance step. **Cookies & privacy** stays available whenever you want to read the details.
+
 ## Add an idea
 
 Add a wish on the list you want it to appear on. A name is enough: a shop link, picture, notes,
 approximate price in pounds and priority are optional. High-priority wishes appear first.
 Experiences and homemade gifts belong here just as much as products.
+
+Long wish names show two lines to keep the list compact. Choose **Show full title** to read the rest,
+then **Show less** to fold it away. This works on shared lists too. Without JavaScript, names appear
+in full.
 
 Have a product link? Use **Fill from link**, then check the suggested name, picture and price before
 saving. You can change any suggestion. Lookup does not buy anything or save a wish automatically.
@@ -42,8 +49,11 @@ On someone else's list:
 - Made a mistake? **Mark as not bought** keeps your reservation but undoes the purchase status.
 - Changed your mind? **Cancel claim** releases it for someone else.
 
+Bought wishes have a pale green background and a **✓ Bought** label beside the name, so their
+status is visible across the whole row.
+
 Other family members can see these buying plans. The person whose wishlist it is cannot: their
-page does not receive that information. You cannot reserve a gift on your own list.
+signed-in page does not receive that information. Shared links do show whether gifts are reserved, even if the owner opens the link anonymously. You cannot reserve a gift on your own list.
 
 **See where to find it** opens the saved shop link. Buying and payment happen at the shop, not in
 Family Wishlist. Marking a gift bought does not remove the wish; remove it later if it is no longer
@@ -67,7 +77,10 @@ private name you will recognise, then choose **Create sharing link** and copy th
 Anyone in the family can create and manage sharing links.
 
 Anyone with the address can view those selected people's current wishes without signing in, but
-cannot edit them or see who is buying anything. New family members are not added automatically.
+cannot edit them or see who is buying anything. They can reserve gifts, and everyone with the link can see which gifts are reserved. New family members are not added automatically.
+Reserved wishes have a pale green background and a **✓ Reserved** label beside the name. This stays
+the same whether someone else is planning to buy the gift or has bought it. Your own purchases show
+**✓ Bought** in the browser that remembers your reservations.
 The private name helps your family recognise the link; it does not restrict who can open or forward
 it. Share it only where you are comfortable sharing the selected lists' contents.
 
@@ -104,3 +117,33 @@ If sign-in fails, check you used the invited email address and ask your organise
 For hosting or update problems, the organiser can use the
 [backup and upgrade guide](BACKUP_RESTORE_UPGRADE.md) and
 [project support information](STEWARDSHIP.md).
+
+## Reserve a gift as a guest
+
+1. Open the sharing link you were sent. **Done when:** the shared lists appear without sign-in.
+2. Choose **I’ll get this** on an available wish. **Done when:** it says **You’re getting this**, or
+   a confirmation appears for this browser's first reservation.
+3. If the confirmation appears, choose **Confirm: I’ll get this**.
+   **Done when:** it says **You’re getting this**. If a cookie error appears, allow required cookies
+   for this site and choose the gift again; the failed attempt has not reserved it.
+4. Open **Keep or recover your reservations** and save **Your recovery code** privately.
+   **Done when:** you have saved the code; anyone with it can manage your reservations. This browser
+   also remembers them using a cookie. Clearing cookies without saving the code loses that access.
+5. After buying the gift, choose **Mark as bought**. **Done when:** it says **You’ve bought this**.
+   Other guests still see only **Reserved**.
+6. If you change your mind, choose **Leave for someone else**. **Done when:** the wish is available again.
+
+To switch browsers:
+
+1. Open the same sharing link in the other browser. **Done when:** the shared lists appear.
+2. Open **Keep or recover your reservations**. **Done when:** the recovery fields appear.
+3. Save this browser's current code privately if you already have reservations here.
+   **Done when:** its code is saved, or this browser has no reservations to keep.
+4. Paste your saved code from the original browser into **Have a saved code?**.
+   **Done when:** the pasted code is visible in that field.
+5. Choose **Recover my reservations**. **Done when:** your reserved gifts show **You’re getting this**
+   or **You’ve bought this**. If an error appears, check the code and use the original sharing link.
+
+If both cookie and code are lost, ask a family member other than the recipient to clear the guest
+reservation from their signed-in view. They open **Clear a guest reservation** and confirm only after
+checking it should be released. Stopping sharing preserves reservations so gifts are not bought twice.
