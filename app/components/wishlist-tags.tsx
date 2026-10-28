@@ -1,29 +1,39 @@
 import { Link } from 'react-router';
 
-import type { FamilyWishlist } from '../lib/db/wishlists';
-
-type WishlistTag = Pick<FamilyWishlist, 'id' | 'owner' | 'isOwn'>;
-
-type FamilyWishlistTagsProps = {
-  wishlists: WishlistTag[];
-  activeWishlistId?: string;
+export type WishlistTag = {
+  id: string;
+  displayName: string;
+  to: string;
+  isOwn?: boolean;
 };
 
-export function FamilyWishlistTags({ wishlists, activeWishlistId }: FamilyWishlistTagsProps) {
+type WishlistTagsProps = {
+  wishlists: WishlistTag[];
+  ariaLabel: string;
+  activeWishlistId?: string;
+  preventScrollReset?: boolean;
+};
+
+export function WishlistTags({
+  wishlists,
+  ariaLabel,
+  activeWishlistId,
+  preventScrollReset = false
+}: WishlistTagsProps) {
   return (
-    <nav aria-label="Choose a family wishlist" className="family-tags">
+    <nav aria-label={ariaLabel} className="family-tags">
       {wishlists.map((wishlist) => (
         <div key={wishlist.id} className="family-tag-wrap">
           <Link
-            to={`/?list=${encodeURIComponent(wishlist.id)}`}
-            preventScrollReset
+            to={wishlist.to}
+            preventScrollReset={preventScrollReset}
             className="family-tag"
             aria-current={activeWishlistId === wishlist.id ? 'page' : undefined}
           >
-            <span>{wishlist.owner.displayName}</span>
+            <span>{wishlist.displayName}</span>
             {wishlist.isOwn ? <small>My wishlist</small> : null}
             <img
-              src="/images/tag-string-hanging.png"
+              src="/shared-assets/tag-string-hanging.png"
               alt=""
               width="384"
               height="256"

@@ -47,7 +47,7 @@ email, giving every production request two complementary identity checks.
 Revocable viewing links use a deliberately configured, path-specific Access Bypass. The Worker
 independently recognises GET/HEAD on exact `/shared/<secret>` list paths, plus POST on
 the exact list path for guest reservations. Neighbouring paths and all other mutations require Access. More-specific Access
-paths also expose the compiled stylesheet and small cookie-notice, picture-failure and expandable-title helpers under `/shared-assets/*`,
+paths also expose the compiled stylesheet, gift-tag decoration and small cookie-notice, picture-failure and expandable-title helpers under `/shared-assets/*`,
 plus the favicon needed to render that public page. Authenticated JavaScript bundles, the web manifest and install icons remain
 behind Access.
 
@@ -89,7 +89,7 @@ enforcement cannot disagree.
 7. The Worker adds private caching, CSP and other defensive response headers to every response.
 8. A shared-list request skips identity validation only when its method and path exactly
    match the public route boundary. It hashes the URL secret and runs a separate D1 query that
-   returns availability and only the current guest’s own reservation state. It includes validated
+   returns availability and only the current sharing link’s own reservation state. It includes validated
    public HTTPS picture addresses for the selected lists; browsers load these directly without
    further Worker or D1 requests.
 
@@ -219,7 +219,9 @@ items
        v
 claims
   item_id PK/FK
-  claimed_by_member_id FK -> members
+  claimed_by_member_id nullable FK -> members
+  guest_token_hash (canonical sharing-link hash for new guest claims)
+  share_link_name (snapshot for guest claims, retained after revocation)
   state: claimed | purchased
 
 family_invitations
@@ -289,8 +291,13 @@ current claimant so one member cannot change another member's claim.
 
 ## Read-only sharing boundary
 
-A sharing URL carries 16 random bytes encoded as a 22-character URL-safe secret. D1 stores only its
-SHA-256 hash, so a database read cannot recover a working link. Each row has a private family-facing
+A sharing link begins with 16 random bytes encoded as a 22-character URL-safe secret. D1 stores its
+SHA-256 hash; the 32-character lowercase hex prefix of that hash is the stable address shown on
+**Manage**. Both forms are accepted by public reads and guest mutations. New links show the stable
+address immediately. For links created before this change, the original address cannot be recovered
+from its hash, but it continues to work alongside the displayed address. Both stop working when the
+row is deleted. The displayed address has 128 bits of entropy, but a D1 read can derive it; database
+access therefore grants access to the shared lists. Each row also has a private family-facing
 name and a separate internal UUID. Atomic conditional inserts count both sharing tables to enforce
 at most five active links across the household. Existing rows above that limit remain usable, but
 creation stays blocked until fewer than five remain. Unknown and removed links return the same
@@ -304,14 +311,16 @@ lists cannot leave a partial selection; duplicate IDs are deduplicated. The sele
 creation while each wishlist's contents stay current.
 
 The authenticated `/family` route is the single sharing surface for every enabled member. Its
-inventory combines both tables, showing only currently enabled owners in each visible-list summary.
+inventory combines both tables, builds each URL from the current request origin and the hash prefix,
+and shows only currently enabled owners in each visible-list summary. Responses remain private and
+uncached.
 A universal revocation service deletes the selected UUID from either table in a guarded D1 batch;
 selection rows cascade for new links. The public page stops working immediately. Public shop picture addresses remain public.
 The loader omits admission and invitation data for ordinary members, and all admission actions retain
 the organiser check before any database or Access mutation.
 
 The public query selects the list owner and ordinary item fields directly from `wishlists`, `members`
-and `items`. A token-hash lookup unions the selected IDs from either kind of link before reading
+and `items`. A token-hash or displayed-address lookup unions the selected IDs from either kind of link before reading
 ordinary wish details; it returns one result per selected wishlist, including empty lists.
 A left join on `claims` returns a reservation enum: available, reserved, yours or bought. Public
 responses never include claimant identifiers, names, hashes or another claimant’s purchase state.
@@ -423,14 +432,18 @@ Product import is deliberately staged:
 3. When a blocked response, verification page or empty application shell would otherwise end the
    lookup, ask the Browser Run `content` Quick Action to render that already-validated public URL.
    It receives no family headers, cookies or identity, blocks image/media/font downloads, has a
-   ten-second navigation/action timeout and is attempted at most once. Its response and navigation
-   URLs are validated and bounded before the same deterministic extraction runs again. Browser Run
-   is identifiable automation and may still be challenged; failure quietly preserves manual entry.
+   ten-second navigation/action timeout and is attempted at most once. Its JSON response is read up to
+   four MiB so large rendered pages can be parsed before their HTML is trimmed to the extraction limit.
+   Oversized responses receive a distinct safe diagnostic. Response and navigation URLs are validated
+   before the same deterministic extraction runs again. Browser Run is identifiable automation and
+   may still be challenged; failure quietly preserves manual entry.
 4. Run the bounded HTML through one native `HTMLRewriter` evidence pass. Ordered rules prefer a
    retailer's explicit current/base price and primary product image, then JSON-LD, Open Graph,
    schema.org microdata and known visible product fields. Retailer adapters contain narrowly scoped
-   rules such as Amazon UK title cleanup, price selection and high-resolution image selection;
-   standard metadata remains the default for every other site.
+   rules such as Amazon UK title cleanup, price selection and high-resolution image selection.
+   eBay UK pages get a two-MiB extraction window because their current primary price can follow
+   large scripts beyond the general 512-KiB limit; only the primary item price is used, not finance
+   offers or recommendations. Standard metadata remains the default for every other site.
 5. If a reliable title or GBP price is still missing and AI is enabled, remove scripts, styles,
    navigation, site headers and footers, forms, cookie controls, adverts, recommendations, reviews,
    social controls and repeated text. Headings, price-adjacent lines and main product content are
@@ -452,8 +465,10 @@ product contributes structured titles, offers and pictures, so recommendations c
 
 Failed lookups carry a safe diagnostic summary to both the JSON helper and ordinary form responses:
 the requested hostname, attempted fetch/retry/browser stages, numeric HTTP statuses, fixed outcome
-descriptions and elapsed time. No page HTML, full URLs, query strings, credentials, response headers
-or raw exception messages enter this summary. Browser-service failures and shop failures are distinct.
+descriptions and elapsed time. Browser timeouts, service HTTP failures, oversized pages and invalid
+service responses have separate fixed descriptions. No page HTML, full URLs, query strings,
+credentials, response headers or raw exception messages enter this summary. Browser-service failures
+and shop failures are distinct.
 The form keeps these details collapsed, with an optional clipboard control and selectable text.
 
 Product images remain HTTPS URLs rather than copied binary data. Deterministic metadata remains the
@@ -565,7 +580,7 @@ the existing helper without becoming persistence or availability dependencies.
 - errors shown to users do not reveal internals;
 - logs omit tokens, private claim surprises and query strings;
 - public sharing secrets are hashed at rest, redacted from application logs and limited to their
-  selected lists; guests can see availability and manage only their own reservations;
+  selected lists; guests can see availability and manage only the current link’s reservations;
 - public sharing Access applications are hostname-specific, idempotently created from the same
   bounded implementation used by setup, and rejected if their destinations or policy drift; and
 - format, lint, type, Workers-runtime tests, build and dependency audit gate every push.
@@ -609,31 +624,29 @@ Origin, while external links retain `noreferrer`. Shared HTML remains private/no
 the authenticated client runtime. Its optional scripts handle the one-time footer notice, picture
 failures and expandable titles.
 
-A cryptographically random 256-bit guest secret is kept in a Secure, HttpOnly, SameSite=Lax host-only
-cookie (Secure and the __Host prefix are omitted only for HTTP loopback development). Public shared
-HTTP requests redirect to HTTPS before routing. D1 stores only its SHA-256 hash on claims.
-The first reservation POST sets the cookie and displays a confirmation without writing a claim;
-the confirmation POST must return that cookie before reserving. This prevents inaccessible claims
-when cookies are blocked and uses the browser's current credential across simultaneous first-use forms.
-Returning guests reserve in one POST. Successful recovery also sets the cookie; successful reservation
-actions renew it, for up to one year. GET/HEAD never create or renew it. Before starting a
-first reservation, the public page has no guest credential or recovery code. The recovery disclosure shows the current browser's private
-code; restoring it is a same-origin POST, never a URL parameter, and requires a matching reservation
-on an enabled list covered by the active link. Recovery replaces the browser's previous credential.
+The sharing URL is the reservation identity. New guest claims store the active link's full canonical
+`token_hash` in `guest_token_hash` and copy its name into `share_link_name`. Both the original URL and
+the address displayed on **Manage** resolve to that same hash, so devices and URL aliases see the
+same reservations. POSTs reserve in one step, with no guest cookie, confirmation or recovery code.
+Public shared HTTP requests still redirect to HTTPS before routing.
 
-Migration 0014 preserves existing member claims while allowing exactly one member ID or guest hash
-per row. The item primary key prevents member/guest double booking with one conditional insert.
-Every guest write checks active link membership, an enabled list owner and (for edits/deletes) the
-matching guest hash inside its SQL statement. The public page shows availability even to an owner
-visiting anonymously; this is an accepted product trade-off. The signed-in owner query still excludes
-all claims at its SQL join and its result type. Other family members see “A guest”, never the hash.
+Migration 0016 adds only the nullable name column, preserving existing claims and compatibility with
+the previously deployed Worker. Reservations written by the former browser-credential flow have no
+originating link information and a null name. They stay reserved, cannot be adopted by an arbitrary
+link and can be cleared by an enabled family member other than the wishlist owner. Existing guest
+cookies are ignored and no longer renewed. Their removal does not affect reservations.
 
-Mutation budgets are atomic D1 counters: 40 attempts per guest and 200 per sharing link per UTC hour,
-including first-use confirmation, recovery and unsuccessful reservations. Check the link counter
-before allocating a guest counter; exhausted links must not create rows for rotated guest codes.
-Admitted requests prune counter rows older than 24 hours. A link-wide limit prevents cookie rotation
-from evading the total allowance. This bounds casual abuse,
-not malicious use of a deliberately forwarded capability. Revocation removes access, not reservations.
+The item primary key prevents member/link double booking with one conditional insert. Every guest
+write checks active link membership, an enabled list owner and, for edits/deletes, the matching
+canonical link hash and a non-null link name inside its SQL statement. Each public query returns
+purchase state only for that link's claims; other links and member claims appear merely reserved.
+The private link name never enters the public query's result. The signed-in owner query excludes
+all claims at its SQL join and result type. Other family members see the stored link name, including
+after revocation, or “A guest” for old browser-owned reservations. No claimant hash is returned.
+
+Mutation budgets are atomic D1 counters: 200 attempts per sharing link per UTC hour, including
+unsuccessful reservations. The original and displayed addresses share the counter across devices.
+Admitted requests prune counter rows older than 24 hours. Revocation removes access, not reservations.
 An enabled family member other than the owner can explicitly clear guest reservations; member claims
 retain their existing ownership rules. No extra Cloudflare binding, token or dashboard setup is needed.
 
@@ -647,9 +660,9 @@ shows an introduction once per browser, automatically setting the fixed local pr
 server-side record. Later visits and newly rendered footers skip the introduction. An optional Close
 button hides it immediately. If storage is unavailable, only the permanent disclosure appears.
 Without JavaScript, the introduction stays hidden and the full explanation remains accessible.
-The notice lists guest and Cloudflare Access cookies, purposes,
-lifetimes and the effects of deleting or blocking them. Shared pages also explain the persistent
-reservation cookie before any reservation action. There are no app analytics, advertising scripts,
+The notice lists Cloudflare Access cookies, purposes, lifetimes and the effects of deleting or
+blocking them. It explains that shared-link reservations work without cookies. Shared pages use
+the same one-time notice and permanent footer disclosure as family pages, with no extra introduction. There are no app analytics, advertising scripts,
 localStorage or sessionStorage identifiers. The local notice preference contains only the fixed value
 `1` and is never sent to the server. See [Cookie operation](COOKIES.md) for the UK assessment
 and the installation operator's responsibilities.

@@ -345,7 +345,7 @@
       rgb(238 227 207 / 0.68)
     ),
     linear-gradient(180deg, rgb(255 250 240 / 0.04), rgb(91 66 40 / 0.08)),
-    url('/images/parcel-table.webp');
+    url('/shared-assets/parcel-table.webp');
   background-position:
     center,
     center,
@@ -747,22 +747,10 @@
   margin-inline: auto;
 }
 
-.public-share-overview {
-  width: 100%;
-  max-width: 64rem;
-  margin-inline: auto;
-}
-
 .public-share-overview h1 {
   margin: 0.5rem 0 1rem;
   font-family: var(--font-display);
   font-size: clamp(2rem, 4vw, 3rem);
-}
-
-.public-share-overview nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
 }
 
 .public-share-sheet .wishlist-heading h2 {
@@ -2140,8 +2128,77 @@ button:disabled {
 }
 
 .family-sharing .profile-share-item > div:first-child {
+  flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.family-sharing .profile-share-item {
+  align-items: flex-start;
+}
+
+.family-sharing .profile-share-actions {
+  width: min(100%, 25rem);
+  justify-content: flex-end;
+}
+
+.family-sharing .removal-confirmation {
+  width: 100%;
+}
+
+.family-sharing .removal-confirmation > summary {
+  margin-left: auto;
+}
+
+.family-share-list-address {
+  max-width: 44rem;
+  margin-top: 0.6rem;
+}
+
+.family-share-list-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.75rem;
+}
+
+.family-share-url {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow-wrap: anywhere;
+  color: var(--leaf);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2rem;
+}
+
+.family-share-copy-button {
+  flex: none;
+  min-height: 2.5rem;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0;
+  color: var(--leaf);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.family-share-copy-button:hover {
+  color: var(--leaf-dark);
+}
+
+.family-share-copy-button:focus-visible,
+.family-share-url:focus-visible {
+  outline: 2px solid var(--rust);
+  outline-offset: 3px;
+}
+
+.family-share-list-address .share-copy-status:empty {
+  display: none;
 }
 
 .family-page-message {
@@ -2583,6 +2640,15 @@ button:disabled {
     flex: initial;
   }
 
+  .family-sharing .profile-share-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .family-sharing .removal-confirmation > summary {
+    margin-left: 0;
+  }
+
   .wish-row {
     grid-template-columns: 1fr;
     gap: 1.3rem;
@@ -2683,7 +2749,7 @@ button:disabled {
         rgb(238 227 207 / 0.72)
       ),
       linear-gradient(180deg, rgb(255 250 240 / 0.03), rgb(91 66 40 / 0.08)),
-      url('/images/parcel-table.webp');
+      url('/shared-assets/parcel-table.webp');
     background-position:
       center,
       center,
@@ -2863,56 +2929,6 @@ button:disabled {
   }
 }
 
-.guest-sharing-intro {
-  max-width: 48rem;
-  margin: 0 auto 1.5rem;
-}
-.guest-sharing-intro > p + p {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-}
-.guest-recovery {
-  margin-top: 1rem;
-}
-.guest-recovery summary {
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-.guest-recovery p {
-  margin: 0.75rem 0;
-}
-.guest-recovery label {
-  display: grid;
-  gap: 0.4rem;
-  margin: 0.75rem 0;
-}
-.guest-recovery input {
-  width: 100%;
-  min-width: 0;
-  padding: 0.7rem;
-  border: 1px solid currentColor;
-  border-radius: 0.35rem;
-  background: transparent;
-}
-.guest-confirmation {
-  margin-top: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-}
-.guest-confirmation h2 {
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-.guest-confirmation p {
-  margin: 0.75rem 0;
-}
-.guest-confirmation form {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
 .guest-claim-controls {
   margin-top: 1rem;
 }
@@ -2977,8 +2993,7 @@ button:disabled {
   margin-top: 0.75rem;
 }
 .cookie-information a,
-.cookie-notice a,
-.guest-sharing-intro a {
+.cookie-notice a {
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }

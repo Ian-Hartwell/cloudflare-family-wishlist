@@ -98,14 +98,17 @@ inventory. Keep errors beside the form and preserve sharing choices. The ordinar
 also work without JavaScript.
 
 Show all active links together below the form, including older single-list links. Each entry gives
-its private name, currently visible wishlists, creator, creation date and an explicit **Stop sharing
-this link** action. Say when no lists are currently visible. Explain the household-wide allowance of
-five active links and replace the creation form with a clear explanation when that limit is reached.
-Each address is shown only when made. Keep technical terms such as “revoke” out of family-facing copy.
+its private name, currently visible wishlists, creator, creation date, a selectable URL with a
+**Copy link** control and an explicit **Stop sharing this link** action. Say when no lists are
+currently visible. Explain the household-wide allowance of five active links and replace the creation
+form with a clear explanation when that limit is reached. Tell members that older links may have a
+different previously sent address and that both addresses work. Keep technical terms such as
+“revoke” out of family-facing copy.
 Profile contains personal details, photo guidance and sign-out; it has no sharing-link inventory.
 
 Stopping sharing first opens a native disclosure explaining that the link will stop working, with
-a second explicit **Yes, stop sharing this link** action. Closing the disclosure cancels without
+a second explicit **Yes, stop sharing this link** action. Keep the disclosure trigger in place as
+it opens, including on narrow screens. Closing the disclosure cancels without
 changing anything. Stopping sharing updates the row in place after server confirmation and preserves unfinished sharing
 choices. Show pending feedback and errors beside that link. Move focus to the next link's stop-sharing
 summary, the previous one if necessary, or the empty message when none remain; leave focus alone if
@@ -230,8 +233,8 @@ bought restores that appearance. Keep the wish in its existing position. The rec
 list must never receive a bought label or row style.
 
 On shared lists, give every reserved wish the same sage wash and outlined shop link, with a tick and
-**Reserved** beside its title. This includes the current guest's reservations. Show **Bought** only
-for the current guest's own purchases; other people's claims and purchases both stay **Reserved**,
+**Reserved** beside its title. This includes the current link's reservations. Show **Bought** only
+for the current link's own purchases; other people's claims and purchases both stay **Reserved**,
 with no buyer details. Marking a guest's purchase as not bought restores the **Reserved** label and
 keeps the wash. Releasing a reservation restores the ordinary paper row and filled shop link.
 
@@ -250,16 +253,18 @@ from this list, we’ll keep it secret so the surprise isn’t spoiled.”
 The link-shared view is a calm paper list with the Family Wishlist mark, the person's name,
 wish count and ordinary wish details. It has no signed-in navigation, wish editing or add controls. Every link offers guest reservation
 controls with explicit text status: Available to give, Reserved, You’re getting this, or You’ve bought
-this. Only the current guest can change their reservation. Keep recovery behind a native disclosure
-and explain that anyone with the link, including the owner, can see reservation availability.
-For a guest's first reservation, show the gift title and **Confirm: I’ll get this** beside **Cancel**.
-Explain that the gift stays available until confirmed and that this checks the browser can remember
-reservations. Once the browser returns its required cookie, keep reservation actions to one click.
+this. Anyone opening the same link sees and can change that link’s reservations on any device.
+Keep reservation actions to one click. Begin with the wishes and list navigation, without an
+instruction block, first-use confirmation or recovery disclosure. Reuse the ordinary site footer
+and its one-time cookie notice. Explain link ownership when creating a link on **Manage**.
 The absence of those controls is sufficient; do not add software-oriented explanations about what a
 public visitor cannot do.
 
-When a sharing link includes several lists, introduce it with **Family wishlists** and a compact
-set of name links that jump to each person's section. Each selected list has its own paper sheet,
+When a sharing link includes several lists, introduce it with **Family wishlists** and the same
+gift tags used for member navigation. On shared pages the tags jump to each person's paper sheet;
+their decorative images load from the public shared-assets path. Give the tag board the same full
+page width as the signed-in selector, so the same names wrap at the same viewport widths. Only the
+paper sheets use the narrower reading width. Each selected list has its own
 heading and wish count, including a clear empty state. Keep the whole view readable without scripts.
 
 ### Finding the right person
@@ -277,7 +282,7 @@ not jump the page down to the list. They are navigation, not filter chips.
 
 The tag body, layout and states remain responsive HTML and CSS. The reinforced hole and fibrous cord
 use the small transparent
-[`public/images/tag-string-hanging.png`](../public/images/tag-string-hanging.png) cut-out. Its eyelet
+[`public/shared-assets/tag-string-hanging.png`](../public/shared-assets/tag-string-hanging.png) cut-out. Its eyelet
 is anchored at the tag hole and its loose loop falls down and left under gravity, so the material
 detail and physical direction do not depend on fragile CSS drawing.
 
@@ -317,7 +322,7 @@ Colours must retain sufficient contrast without resorting to saturated software-
 ### Imagery
 
 The family selector uses
-[`public/images/parcel-table.webp`](../public/images/parcel-table.webp), a purpose-built editorial
+[`public/shared-assets/parcel-table.webp`](../public/shared-assets/parcel-table.webp), a purpose-built editorial
 still life with year-round wrapping materials. It is faded beneath the family’s gift tags and remains
 a decorative CSS background, so it does not add redundant alternative text. It has no marketing copy:
 the family names are the useful content. Keep it shallow enough that the start of the active wishlist
